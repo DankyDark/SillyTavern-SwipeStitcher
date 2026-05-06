@@ -201,6 +201,7 @@ function buildStitcherWorkspace() {
     const previewBody = createElement('div', 'swipe-stitcher-preview-body', { tabIndex: 0 });
     const previewHeader = createElement('div', 'swipe-stitcher-preview-header');
     const previewPanel = createElement('div', 'swipe-stitcher-preview-panel');
+    previewPanel.classList.add('swipe-stitcher-preview-panel-mobile-reorderable');
     previewHeader.append(previewTitle, addBtn);
     previewPanel.append(previewHeader, previewBody);
     sourceArea.append(tabList, previewPanel);

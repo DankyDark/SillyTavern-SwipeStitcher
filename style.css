@@ -484,6 +484,16 @@ body.theme-light .swipe-stitcher-mobile-tab {
         min-height: 0;
     }
 
+    .swipe-stitcher-preview-panel-mobile-reorderable {
+        flex-direction: column-reverse;
+    }
+
+    .swipe-stitcher-preview-header {
+        min-height: 56px;
+        border-bottom: none;
+        border-top: 1px solid var(--SmartThemeBorderColor, #555);
+    }
+
     .swipe-stitcher-preview-body {
         min-height: 0;
         font-size: 0.9em;
