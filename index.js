@@ -58,7 +58,7 @@ function addStitchIconToMessage(messageId) {
         }
 
         const stitchButton = createElement('div', 'mes_button swipe-stitcher-icon interactable', {
-            innerHTML: '<i class="fa-solid fa-scissors"></i>',
+            innerHTML: '<i class="fa-solid fa-arrow-down-up-across-line"></i>',
             title: 'Stitch together swipes',
             tabIndex: 0,
         });
@@ -153,7 +153,7 @@ function buildModalShell() {
     const container = createElement('div', 'swipe-stitcher-container');
     const header = createElement('div', 'swipe-stitcher-header', {
         innerHTML: `
-            <h3><i class="fa-solid fa-scissors"></i> Swipe Stitcher</h3>
+            <h3><i class="fa-solid fa-arrow-down-up-across-line"></i> Swipe Stitcher</h3>
             <button class="swipe-stitcher-close" title="Close">&times;</button>
         `,
     });
