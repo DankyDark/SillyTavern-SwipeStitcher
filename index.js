@@ -140,7 +140,6 @@ async function generatePolishedText(stitchedText) {
         prompt: buildPolishPrompt(stitchedText),
         systemPrompt: POLISH_SYSTEM_PROMPT,
         instructOverride: true,
-        responseLength: 1024,
     });
 
     return {
