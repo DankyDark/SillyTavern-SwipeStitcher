@@ -198,7 +198,13 @@ function buildStitcherWorkspace() {
         disabled: true,
         title: 'Highlight text in the preview, then click to add it to the stitch',
     });
-    const previewBody = createElement('div', 'swipe-stitcher-preview-body', { tabIndex: 0 });
+    const previewBody = createElement('div', 'swipe-stitcher-preview-body text_pole', {
+        tabIndex: 0,
+        contentEditable: 'true',
+    });
+    // Prevent the user from actually editing the preview
+    previewBody.addEventListener('keydown', (e) => e.preventDefault());
+    previewBody.addEventListener('paste', (e) => e.preventDefault());
     const previewHeader = createElement('div', 'swipe-stitcher-preview-header');
     const previewPanel = createElement('div', 'swipe-stitcher-preview-panel');
     previewPanel.classList.add('swipe-stitcher-preview-panel-mobile-reorderable');

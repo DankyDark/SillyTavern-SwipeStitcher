@@ -83,6 +83,21 @@
     box-sizing: border-box;
 }
 
+/* Prevent selection from leaking outside the preview body */
+.swipe-stitcher-container,
+.swipe-stitcher-container * {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Re-enable text selection inside the preview body and result textarea */
+.swipe-stitcher-preview-body,
+.swipe-stitcher-preview-body *,
+.swipe-stitcher-result-textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 @keyframes stSlideIn {
     from { transform: translateY(-20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -222,6 +237,8 @@
     justify-content: space-between;
     gap: 10px;
     flex-shrink: 0;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .swipe-stitcher-preview-title {
@@ -241,13 +258,20 @@
     color: var(--SmartThemeBodyColor, #e0e0e0);
     font-size: 0.95em;
     line-height: 1.55;
-    -webkit-user-select: text !important;
-    user-select: text !important;
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
     cursor: text;
+    font-family: inherit;
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
     box-sizing: border-box;
+}
+
+.swipe-stitcher-preview-body::selection {
+    background: rgba(74, 158, 255, 0.3);
 }
 
 /* Add selection button */
