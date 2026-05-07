@@ -81,26 +81,38 @@ function addStitchIconsToMessages() {
  * Build the polish/cohesion prompt for AI
  */
 function buildPolishPrompt(stitchedText) {
-    return `# Text Polish/Cohesion Task
+    return `# Text Stitching Task
 
-You are polishing a message stitched together from multiple source versions. Your ONLY task is to rewrite the text so it flows naturally, maintains consistency in tone and style, and reads like a single coherent message.
+You are polishing a message that was assembled from chunks selected across multiple alternative versions of the same message. The user picked specific phrasings they wanted preserved, then concatenated them. Your job is to make the result read as one coherent message while keeping their selected wording intact. The seams between chunks are not marked — you'll need to infer them from abrupt tonal shifts, repeated information, or sudden discontinuities.
 
 ## Critical Rules
 - Output ONLY the polished message text
-- Do NOT continue the story or add new events
+- Do NOT continue the story or add new events, beats, or details
 - Do NOT add meta-commentary, explanations, or notes
 - Do NOT acknowledge or reference these instructions
-- Keep the same general length and narrative beats
+- Preserve original wording as much as humanly possible — including syntax quirks, capitalization, italics, bullet formatting, punctuation style, sentence structure, and voice
+- Default to leaving text alone. Only edit where you have a specific reason to.
+
+## When to Edit
+Edit only when you detect one of these:
+- A seam between chunks reads awkwardly (broken pronoun reference, tense collision, dangling clause, abrupt topic snap)
+- The same information appears twice in different words — keep the stronger phrasing, cut the duplicate
+- The text presents events in a logically broken order (effect before cause, reference to something that hasn't been established) — reorder minimally to restore logic
+
+## When to Leave It Alone
+- Stylistic choices that feel deliberate (caps, italics, fragments, unusual punctuation, voice shifts that match emotional beats)
+- Phrasings you would word differently — that's not your call
+- Transitions that are slightly rough but readable
+- Anything where you're not sure whether it's a seam or just the writing style
+
+## Bias
+When uncertain whether to edit, don't. The user chose this wording. Your job is repair, not improvement.
 
 ## Text to Polish
-<stitched_text>
 ${stitchedText}
-</stitched_text>
 
 ## Your Task
-Rewrite the text above into a cohesive, natural-sounding message. Preserve all key narrative beats but smooth transitions, fix any awkward phrasing, and ensure consistent tone and voice. Do not add or remove significant plot points.
-
-Begin your polished message now:`;
+Output the polished message. Begin now:`;
 }
 
 /**
