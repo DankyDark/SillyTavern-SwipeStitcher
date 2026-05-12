@@ -2,11 +2,11 @@
     "id": "swipe-stitcher",
     "display_name": "Swipe Stitcher",
     "description": "Highlight and stitch together text fragments from multiple swipes into a new message, optionally polished by AI.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "DankyDark",
     "homePage": "https://github.com/DankyDark/SillyTavern-SwipeStitcher",
     "requires": [],
     "js": "index.js",
     "css": "style.css",
-    "auto_update": false
+    "auto_update": true
 }

@@ -13,6 +13,12 @@ import {
     main_api,
 } from '../../../../script.js';
 import { extractReasoningFromData, parseReasoningFromString, reasoning_templates, removeReasoningFromString } from '../../../reasoning.js';
+import {
+    initSettings,
+    isConnectionManagerAvailable,
+    getProfileSelector,
+    generateWithProfile,
+} from './profile_manager.js';
 
 const EXTENSION_NAME = 'swipe-stitcher';
 const INIT_FLAG = '__SwipeStitcherInitialized';
@@ -81,38 +87,26 @@ function addStitchIconsToMessages() {
  * Build the polish/cohesion prompt for AI
  */
 function buildPolishPrompt(stitchedText) {
-    return `# Text Stitching Task
+    return `# Text Polish/Cohesion Task
 
-You are polishing a message that was assembled from chunks selected across multiple alternative versions of the same message. The user picked specific phrasings they wanted preserved, then concatenated them. Your job is to make the result read as one coherent message while keeping their selected wording intact. The seams between chunks are not marked — you'll need to infer them from abrupt tonal shifts, repeated information, or sudden discontinuities.
+You are polishing a message stitched together from multiple source versions. Your ONLY task is to rewrite the text so it flows naturally, maintains consistency in tone and style, and reads like a single coherent message.
 
 ## Critical Rules
 - Output ONLY the polished message text
-- Do NOT continue the story or add new events, beats, or details
+- Do NOT continue the story or add new events
 - Do NOT add meta-commentary, explanations, or notes
 - Do NOT acknowledge or reference these instructions
-- Preserve original wording as much as humanly possible — including syntax quirks, capitalization, italics, bullet formatting, punctuation style, sentence structure, and voice
-- Default to leaving text alone. Only edit where you have a specific reason to.
-
-## When to Edit
-Edit only when you detect one of these:
-- A seam between chunks reads awkwardly (broken pronoun reference, tense collision, dangling clause, abrupt topic snap)
-- The same information appears twice in different words — keep the stronger phrasing, cut the duplicate
-- The text presents events in a logically broken order (effect before cause, reference to something that hasn't been established) — reorder minimally to restore logic
-
-## When to Leave It Alone
-- Stylistic choices that feel deliberate (caps, italics, fragments, unusual punctuation, voice shifts that match emotional beats)
-- Phrasings you would word differently — that's not your call
-- Transitions that are slightly rough but readable
-- Anything where you're not sure whether it's a seam or just the writing style
-
-## Bias
-When uncertain whether to edit, don't. The user chose this wording. Your job is repair, not improvement.
+- Keep the same general length and narrative beats
 
 ## Text to Polish
+<stitched_text>
 ${stitchedText}
+</stitched_text>
 
 ## Your Task
-Output the polished message. Begin now:`;
+Rewrite the text above into a cohesive, natural-sounding message. Preserve all key narrative beats but smooth transitions, fix any awkward phrasing, and ensure consistent tone and voice. Do not add or remove significant plot points.
+
+Begin your polished message now:`;
 }
 
 /**
@@ -147,7 +141,19 @@ function sanitizePolishResponse(result) {
     return text;
 }
 
-async function generatePolishedText(stitchedText) {
+async function generatePolishedText(stitchedText, profileId = null) {
+    if (profileId && isConnectionManagerAvailable()) {
+        const result = await generateWithProfile(
+            profileId,
+            buildPolishPrompt(stitchedText),
+            POLISH_SYSTEM_PROMPT,
+        );
+        return {
+            text: sanitizePolishResponse(result.text),
+            reasoning: result.reasoning?.trim() || '',
+        };
+    }
+
     const data = await generateRawData({
         prompt: buildPolishPrompt(stitchedText),
         systemPrompt: POLISH_SYSTEM_PROMPT,
@@ -163,12 +169,12 @@ async function generatePolishedText(stitchedText) {
 function buildModalShell() {
     const overlay = createElement('div', 'swipe-stitcher-overlay');
     const container = createElement('div', 'swipe-stitcher-container');
-    const header = createElement('div', 'swipe-stitcher-header', {
-        innerHTML: `
-            <h3><i class="fa-solid fa-arrow-down-up-across-line"></i> Swipe Stitcher</h3>
-            <button class="swipe-stitcher-close" title="Close">&times;</button>
-        `,
-    });
+    const header = createElement('div', 'swipe-stitcher-header');
+    header.innerHTML = `
+        <h3><i class="fa-solid fa-arrow-down-up-across-line"></i> Swipe Stitcher</h3>
+        <select class="swipe-stitcher-profile-select text_pole" title="Connection profile for Polish"></select>
+        <button class="swipe-stitcher-close" title="Close">&times;</button>
+    `;
     const body = createElement('div', 'swipe-stitcher-body');
     const footer = createElement('div', 'swipe-stitcher-footer', {
         innerHTML: `
@@ -232,10 +238,19 @@ function buildStitcherWorkspace() {
         placeholder: 'Your stitched text will appear here...',
         rows: 6,
     });
-    resultArea.append(resultLabel, textarea);
+
+    const reasoningDetails = createElement('details', 'swipe-stitcher-reasoning-details');
+    reasoningDetails.hidden = true;
+    const reasoningSummary = createElement('summary', 'swipe-stitcher-reasoning-summary', {
+        innerHTML: '<span>Polish Reasoning</span><i class="fa-solid fa-chevron-down swipe-stitcher-reasoning-arrow"></i>',
+    });
+    const reasoningContent = createElement('div', 'swipe-stitcher-reasoning-content');
+    reasoningDetails.append(reasoningSummary, reasoningContent);
+
+    resultArea.append(resultLabel, reasoningDetails, textarea);
     workspace.append(sourceArea, resultArea);
 
-    return { mobileTabs, workspace, sourceArea, resultArea, tabList, previewTitle, previewBody, addBtn, textarea };
+    return { mobileTabs, workspace, sourceArea, resultArea, tabList, previewTitle, previewBody, addBtn, textarea, reasoningDetails, reasoningContent };
 }
 
 function getStitchedText(textarea) {
@@ -275,8 +290,21 @@ async function openStitcherModal(messageId) {
     cleanupCurrentModal = null;
 
     const { overlay, body } = buildModalShell();
+
+    // Wire up the profile selector dropdown in the header
+    let profileSelector = null;
+    const profilePlaceholder = overlay.querySelector('.swipe-stitcher-profile-select');
+    if (profilePlaceholder) {
+        profileSelector = getProfileSelector();
+        if (profileSelector.isAvailable) {
+            profilePlaceholder.replaceWith(profileSelector.element);
+        } else {
+            profilePlaceholder.remove();
+        }
+    }
+
     const workspaceParts = buildStitcherWorkspace();
-    const { mobileTabs, workspace, sourceArea, resultArea, tabList, previewTitle, previewBody, addBtn, textarea } = workspaceParts;
+    const { mobileTabs, workspace, sourceArea, resultArea, tabList, previewTitle, previewBody, addBtn, textarea, reasoningDetails, reasoningContent } = workspaceParts;
     body.append(mobileTabs, workspace);
     document.body.appendChild(overlay);
 
@@ -305,6 +333,9 @@ async function openStitcherModal(messageId) {
         previewBody.setAttribute('data-swipe-index', index);
         addBtn.disabled = true;
         cachedSelection = '';
+        textarea.classList.remove('st-polished', 'st-polish-error');
+        reasoningDetails.hidden = true;
+        reasoningContent.textContent = '';
 
         swipeTabs.forEach((tab, tabIndex) => {
             const isActive = tabIndex === index;
@@ -350,6 +381,8 @@ async function openStitcherModal(messageId) {
             textarea.value = current + separator + selectedText;
             textarea.scrollTop = textarea.scrollHeight;
             pendingSwipeMeta = { polished: false, reasoning: '' };
+            reasoningDetails.hidden = true;
+            reasoningContent.textContent = '';
             selection.removeAllRanges();
             cachedSelection = '';
             addBtn.disabled = true;
@@ -397,6 +430,8 @@ async function openStitcherModal(messageId) {
         clearTimeout(focusTimer);
         document.removeEventListener('selectionchange', trackSelection);
         document.removeEventListener('keydown', keyHandler);
+        profileSelector?.store();
+        textarea.classList.remove('st-polished', 'st-polish-error');
         overlay.remove();
         if (cleanupCurrentModal === closeModal) {
             cleanupCurrentModal = null;
@@ -426,6 +461,9 @@ async function openStitcherModal(messageId) {
 
     textarea.addEventListener('input', () => {
         pendingSwipeMeta = { polished: false, reasoning: '' };
+        textarea.classList.remove('st-polished', 'st-polish-error');
+        reasoningDetails.hidden = true;
+        reasoningContent.textContent = '';
         const rejectButton = overlay.querySelector('.swipe-stitcher-reject-polish');
         rejectButton.hidden = true;
         rejectButton.disabled = true;
@@ -455,7 +493,8 @@ async function openStitcherModal(messageId) {
         rejectPolishButton.disabled = true;
 
         try {
-            const { text: polishedText, reasoning } = await generatePolishedText(stitchedText);
+            const selectedProfileId = profileSelector?.getSelected() || null;
+            const { text: polishedText, reasoning } = await generatePolishedText(stitchedText, selectedProfileId);
             if (modalClosed) return;
 
             if (!polishedText) {
@@ -465,7 +504,16 @@ async function openStitcherModal(messageId) {
 
             textarea.value = polishedText;
             textarea.scrollTop = 0;
+            textarea.classList.remove('st-polish-error');
+            textarea.classList.add('st-polished');
             pendingSwipeMeta = { polished: true, reasoning: reasoning?.trim?.() || '' };
+            if (reasoning?.trim()) {
+                reasoningContent.textContent = reasoning.trim();
+                reasoningDetails.hidden = false;
+            } else {
+                reasoningDetails.hidden = true;
+                reasoningContent.textContent = '';
+            }
             setMobilePanel('result');
             rejectPolishButton.hidden = false;
             rejectPolishButton.disabled = false;
@@ -474,6 +522,8 @@ async function openStitcherModal(messageId) {
             if (modalClosed) return;
 
             console.error(`[${EXTENSION_NAME}] Error polishing stitched text:`, error);
+            textarea.classList.remove('st-polished');
+            textarea.classList.add('st-polish-error');
             toastr.error('An error occurred while polishing the stitched text.');
         } finally {
             if (modalClosed) return;
@@ -488,7 +538,10 @@ async function openStitcherModal(messageId) {
         if (rejectPolishButton.disabled) return;
 
         textarea.value = prePolishText;
+        textarea.classList.remove('st-polished', 'st-polish-error');
         pendingSwipeMeta = { polished: false, reasoning: '' };
+        reasoningDetails.hidden = true;
+        reasoningContent.textContent = '';
         rejectPolishButton.hidden = true;
         rejectPolishButton.disabled = true;
         textarea.focus();
@@ -583,6 +636,7 @@ jQuery(async () => {
     console.log(`[${EXTENSION_NAME}] Initializing...`);
 
     try {
+        initSettings();
         $(document).on('click', '.swipe-stitcher-icon', onStitcherIconClick);
 
         addStitchIconsToMessages();
